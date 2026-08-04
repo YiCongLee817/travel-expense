@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>旅伴帳本｜旅遊預算與分帳</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <div class="hero-top">
+          <div>
+            <p class="eyebrow">旅伴帳本 · TRIP LEDGER</p>
+            <input id="tripName" class="trip-name" value="東京 5 天 4 夜自由行" aria-label="行程名稱" />
+          </div>
+          <div class="actions">
+            <button class="btn btn-excel" id="exportExcel">📊 匯出 Excel</button>
+            <button class="btn btn-pdf" id="exportPdf">📄 匯出 PDF</button>
+          </div>
+        </div>
+        <div class="budget-panel">
+          <div class="budget-heading"><span>總預算</span><label>NT$ <input id="budget" type="number" min="0" value="80000" /></label></div>
+          <div class="progress-track"><div id="budgetProgress" class="progress-fill"></div></div>
+          <div class="budget-stats"><span id="budgetText">已使用 NT$0</span><strong id="budgetPercent">0%</strong></div>
+          <p id="overBudget" class="alert hidden">⚠️ 已超出預算，請留意接下來的支出。</p>
+        </div>
+      </header>
+
+      <section class="summary-grid" id="exportArea">
+        <article class="stat-card"><span>累計花費</span><strong id="totalSpent">NT$0</strong><small>所有消費的台幣總額</small></article>
+        <article class="stat-card"><span>剩餘預算</span><strong id="remainingBudget">NT$80,000</strong><small>可自由調整總預算</small></article>
+        <article class="stat-card"><span>消費筆數</span><strong id="expenseCount">0 筆</strong><small>每一筆都清楚記錄</small></article>
+      </section>
+
+      <section class="workspace">
+        <aside class="card form-card">
+          <div class="section-title"><div><p class="eyebrow">NEW EXPENSE</p><h2>新增消費</h2></div></div>
+          <form id="expenseForm">
+            <div class="field-grid">
+              <label>消費日期<input id="date" type="date" required /></label>
+              <label>付款人<select id="payer"></select></label>
+            </div>
+            <label>項目名稱<input id="item" type="text" placeholder="例如：淺草寺門票" required /></label>
+            <div class="field-grid">
+              <label>類別<select id="category"></select></label>
+              <label>幣別<select id="currency"><option>JPY</option><option>USD</option><option>EUR</option><option>KRW</option><option>TWD</option></select></label>
+            </div>
+            <div class="field-grid">
+              <label>原幣金額<input id="amount" type="number" min="0" step="0.01" placeholder="0" required /></label>
+              <label>即時匯率<input id="exchangeRate" type="number" min="0" step="0.0001" required /></label>
+            </div>
+            <label class="toggle-row"><span><b>海外信用卡手續費</b><small>開啟後加計 1.5%</small></span><input id="cardFee" type="checkbox" /><i></i></label>
+            <label>分帳模式<select id="splitMode"><option value="equal">全體均分</option><option value="custom">自訂比例</option><option value="self">自己負擔</option></select></label>
+            <div id="customRatios" class="ratios hidden"></div>
+            <div class="estimate"><span>預估折合台幣</span><strong id="estimatedTwd">NT$0</strong></div>
+            <button class="btn btn-primary" type="submit">＋ 加入消費紀錄</button>
+          </form>
+          <div class="members"><div class="members-head"><b>同行成員</b><button id="addMember" type="button">＋ 新增</button></div><div id="memberChips"></div></div>
+        </aside>
+        <section class="card ledger-card">
+          <div class="section-title"><div><p class="eyebrow">LEDGER</p><h2>消費明細</h2></div><span id="ledgerCount" class="count-pill">0 筆</span></div>
+          <div id="expenseList" class="expense-list"><div class="empty">尚未加入消費紀錄<br/><small>從左側開始記錄這趟旅程吧！</small></div></div>
+        </section>
+      </section>
+
+      <section class="analysis-grid" id="reportArea">
+        <article class="card analytics-card">
+          <div class="section-title"><div><p class="eyebrow">ANALYTICS</p><h2>📊 消費類別分析</h2></div></div>
+          <div class="chart-layout"><div id="donut" class="donut"><div><strong id="donutTotal">NT$0</strong><span>累計花費</span></div></div><div id="categoryStats" class="category-stats"></div></div>
+        </article>
+        <article class="card settlement-card">
+          <div class="section-title"><div><p class="eyebrow">SETTLEMENT</p><h2>🤝 團員分帳結算</h2></div></div>
+          <div id="balances" class="balances"></div>
+          <div class="transfer-box"><b>建議清償路徑</b><div id="transfers" class="transfers"><span class="muted">加入消費後，系統會自動計算最少轉帳筆數。</span></div></div>
+        </article>
+      </section>
+      <section class="card member-analysis-card">
+        <div class="section-title"><div><p class="eyebrow">MEMBER ANALYTICS</p><h2>👥 個人消費類別分析</h2></div><span class="count-pill">依付款人統計</span></div>
+        <p class="member-analysis-note">依每筆消費的「付款人」歸類，呈現每位成員在各類別的花費金額與占比。</p>
+        <div id="memberAnalytics" class="member-analytics"></div>
+      </section>
+    </main>
+    <div id="toast" class="toast"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
